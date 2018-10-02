@@ -1,5 +1,5 @@
 CC = clang++ -Wall -g -std=c++14
-LIBS = /usr/lib/x86_64-linux-gnu/libpcap.so
+LIBS = /usr/lib/x86_64-linux-gnu/libpcap.so -lpthread
 INCLUDE = ./include
 
 pcapper_test: main.o pcapper.o
