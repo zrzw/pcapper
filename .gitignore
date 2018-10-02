@@ -1,0 +1,6 @@
+*.o
+GPATH
+GRTAGS
+GTAGS
+.dir-locals.el
+pcapper_test
