@@ -1,12 +1,14 @@
 #include <iostream>
 #include <string>
+#include <chrono>
 #include "pcapper.h"
 
 using namespace pcapper;
 
 int main(int argc, char** argv)
 {
-    std::string filter {"port 53"};
-    pcap_session {1000, filter, std::cout};
+    pcap_session ps {"port 53", std::cerr};
+    std::this_thread::sleep_for(std::chrono::milliseconds{3000});
+    std::cout << "Timer elapsed\n";
     return 0;
 }
