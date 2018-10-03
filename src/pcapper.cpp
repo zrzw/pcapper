@@ -10,33 +10,28 @@
 
 #include "pcapper.h"
 
-#define _PCAPPER_DEBUG_ true
-
 /* Create pcap session, compile + apply filter then begin listening */
-pcapper::pcap_session::pcap_session(const std::string& filter,
-                                    std::ostream& errstream)
-    :serr {errstream}
+pcapper::pcap_session::pcap_session(const std::string& filter)
+#if _PCAPPER_DEBUG_
+    : serr(std::cerr)
+#endif
 {
     char err[PCAP_ERRBUF_SIZE];
     char* dev = pcap_lookupdev(err); //TODO: use specified (not default) device
     if(dev == nullptr){
-        serr << "Pcapper: Couldn't open default dev" << std::endl;
-        exit(1); //TODO: throw
+        throw pcap_setup_ex(err);
     }
     if(pcap_lookupnet(dev, &net, &mask, err) == -1){
-        serr << "Pcapper: Couldn't get netmask: " << err << std::endl;
         net = 0;
         mask = 0;
     }
     handle = pcap_open_live(dev, BUFSIZ, 1, 20, err);
     if(handle == NULL){
-        serr << "Pcapper: Couldn't open " << dev << ": " << err << std::endl;
-        exit(1); //TODO: throw
+        throw pcap_setup_ex(err);
     }
     if((pcap_compile(handle, &bpf, filter.c_str(), 0, net) == -1)
        || (pcap_setfilter(handle, &bpf) == -1)){
-        serr << "Pcapper: Couldn't parse or set filter" << std::endl;
-        exit(1); //TODO: throw
+        throw pcap_setup_ex(err);
     }
     _thread = std::thread(pcap_loop, handle, -1, libpcap_callback, (u_char*)this);
 }
@@ -44,14 +39,14 @@ pcapper::pcap_session::pcap_session(const std::string& filter,
 pcapper::pcap_session::~pcap_session()
 {
     pcap_breakloop(handle);
-    #if _PCAPPER_DEBUG_
+#if _PCAPPER_DEBUG_
     std::unique_lock<std::mutex> errlck {serr_mutex};
     serr << "Pcapper: attempting to join()...";
-    #endif
+#endif
     _thread.join();
-    #if _PCAPPER_DEBUG_
+#if _PCAPPER_DEBUG_
     serr << "..joined" << std::endl;
-    #endif
+#endif
     pcap_close(handle);
 }
 
