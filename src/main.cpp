@@ -5,18 +5,17 @@
 
 using namespace pcapper;
 
-#define TIMETEST false
-
 int main(int argc, char** argv)
 {
-    pcap_session ps {"port 53"};
-    if(TIMETEST){
-        std::this_thread::sleep_for(std::chrono::milliseconds{3000});
-        std::cout << "Timer elapsed\n";
-    } else {
-        for(;;){
-            ps.pop();
-        }
-    }
+    // basic_packet_handler provides a blocking pop() function which prints all
+    // recieved packets to the specified ostream.
+    basic_packet_handler handler;
+
+    // pcap_session initiates a pcap_loop (libpcap) in a new thread with the
+    // specified filter and queues packets to the designated handler using the
+    // libpcap callback mechanism.
+    pcap_session pcap {"port 53", handler};
+    for(;;)
+        handler.pop(pcap);
     return 0;
 }

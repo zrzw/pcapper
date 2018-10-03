@@ -11,9 +11,12 @@
 #include "pcapper.h"
 
 /* Create pcap session, compile + apply filter then begin listening */
-pcapper::pcap_session::pcap_session(const std::string& filter)
+pcapper::pcap_session::pcap_session(const std::string& filter,
+                                    pcapper::packet_handler& ph_)
 #if _PCAPPER_DEBUG_
-    : serr(std::cerr)
+    : serr(std::cerr), ph(ph_)
+#else
+      : ph(ph_)
 #endif
 {
     char err[PCAP_ERRBUF_SIZE];
@@ -50,19 +53,20 @@ pcapper::pcap_session::~pcap_session()
     pcap_close(handle);
 }
 
-void pcapper::pcap_session::pop()
+void pcapper::basic_packet_handler::pop(pcap_session& pcap)
 {
     std::unique_lock<std::mutex> qlck {pq_mutex};
-    packets_available.wait(qlck); // wait for packets to be queued
+    pcap.get_packets_available().wait(qlck); // wait for packets to be queued
     assert(!packet_q.empty());
     while(!packet_q.empty()){
         auto p = packet_q.front();
         packet_q.pop();
         //TODO: do something with p
 #if _PCAPPER_DEBUG_
-        std::unique_lock<std::mutex> errlck {serr_mutex};
-        serr << "Pcapper: pcap_session::pop(): removed 1, " << packet_q.size();
-        serr << " packets still queued" << std::endl;
+        std::unique_lock<std::mutex> errlck {pcap.serr_mutex};
+        pcap.serr << "Pcapper: basic_packet_handler::pop(): removed 1, ";
+        pcap.serr << packet_q.size();
+        pcap.serr << " packets still queued" << std::endl;
         errlck.unlock();
 #endif
     }
@@ -70,18 +74,19 @@ void pcapper::pcap_session::pop()
 }
 
 void pcapper::libpcap_callback(u_char *user, const struct pcap_pkthdr *hdr,
-                          const u_char *pkt)
+                               const u_char *pkt)
 {
     pcapper::packet p{"test"}; //TODO: construct from pkt
     pcapper::pcap_session* pcap = (pcapper::pcap_session*)user;
-    std::unique_lock<std::mutex> lck {pcap->pq_mutex};
+    pcapper::packet_handler& ph = pcap->get_handler();
+    std::unique_lock<std::mutex> lck {ph.get_queue_mutex()};
     #if _PCAPPER_DEBUG_
     std::unique_lock<std::mutex> errlck {pcap->serr_mutex};
     pcap->serr << "Pcapper: pcapper::libpcap_callback(): adding packet to queue, ";
-    pcap->serr << "total=" << pcap->packet_q.size()+1 << std::endl;
+    pcap->serr << "total=" << ph.get_queue().size()+1 << std::endl;
     errlck.unlock();
     #endif
-    pcap->packet_q.push(p);
+    ph.get_queue().push(p);
     lck.unlock();
     pcap->packets_available.notify_one();
 }
