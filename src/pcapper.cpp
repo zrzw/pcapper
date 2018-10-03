@@ -10,7 +10,7 @@
 
 #include "pcapper.h"
 
-#define _NDEBUG_ true
+#define _PCAPPER_DEBUG_ true
 
 /* Create pcap session, compile + apply filter then begin listening */
 pcapper::pcap_session::pcap_session(const std::string& filter,
@@ -44,12 +44,12 @@ pcapper::pcap_session::pcap_session(const std::string& filter,
 pcapper::pcap_session::~pcap_session()
 {
     pcap_breakloop(handle);
-    #if _NDEBUG_
+    #if _PCAPPER_DEBUG_
     std::unique_lock<std::mutex> errlck {serr_mutex};
     serr << "Pcapper: attempting to join()...";
     #endif
     _thread.join();
-    #if _NDEBUG_
+    #if _PCAPPER_DEBUG_
     serr << "..joined" << std::endl;
     #endif
     pcap_close(handle);
@@ -64,7 +64,7 @@ void pcapper::pcap_session::pop()
         auto p = packet_q.front();
         packet_q.pop();
         //TODO: do something with p
-#if _NDEBUG_
+#if _PCAPPER_DEBUG_
         std::unique_lock<std::mutex> errlck {serr_mutex};
         serr << "Pcapper: pcap_session::pop(): removed 1, " << packet_q.size();
         serr << " packets still queued" << std::endl;
@@ -80,7 +80,7 @@ void pcapper::libpcap_callback(u_char *user, const struct pcap_pkthdr *hdr,
     pcapper::packet p{"test"}; //TODO: construct from pkt
     pcapper::pcap_session* pcap = (pcapper::pcap_session*)user;
     std::unique_lock<std::mutex> lck {pcap->pq_mutex};
-    #if _NDEBUG_
+    #if _PCAPPER_DEBUG_
     std::unique_lock<std::mutex> errlck {pcap->serr_mutex};
     pcap->serr << "Pcapper: pcapper::libpcap_callback(): adding packet to queue, ";
     pcap->serr << "total=" << pcap->packet_q.size()+1 << std::endl;
