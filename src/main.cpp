@@ -14,7 +14,7 @@ int main(int argc, char** argv)
     // pcap_session initiates a pcap_loop (libpcap) in a new thread with the
     // specified filter and queues packets to the designated handler using the
     // libpcap callback mechanism.
-    pcap_session pcap {"port 53", handler};
+    pcap_session pcap {"port 443", handler};
     for(;;)
         handler.pop(pcap);
     return 0;
