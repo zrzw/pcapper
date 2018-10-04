@@ -15,7 +15,9 @@
 #include <memory>
 #include <pcap.h>
 
-#define _PCAPPER_DEBUG_ true
+#define _PCAPPER_DEBUG_ false
+
+#define PCAPPER_LINK_TYPE_ETHERNET DLT_EN10MB
 
 namespace pcapper {
 
@@ -95,11 +97,13 @@ namespace pcapper {
         packet& operator=(packet& r) = delete;
         packet& operator=(packet&& r);
         const std::unique_ptr<mac_hdr>& get_machdr() { return machdr; }
+        size_t size() { return len; }
     private:
         // Headers
         std::unique_ptr<mac_hdr> machdr; // Link layer
         std::unique_ptr<nl_hdr> nlhdr; // Network layer
         std::unique_ptr<tl_hdr> tlhdr; // Transport layer
+        size_t len;
     };
 
     class pcap_session;
@@ -114,7 +118,7 @@ namespace pcapper {
     public:
         std::queue<packet>& get_queue() { return packet_q; }
         std::mutex& get_queue_mutex() { return pq_mutex; }
-        virtual void pop(pcap_session& pcap);
+        virtual void pop(pcap_session& pcap, std::ostream& os);
     protected:
         std::mutex pq_mutex;
         std::queue<packet> packet_q; 
@@ -137,9 +141,10 @@ namespace pcapper {
         /* Close the pcap session */
         ~pcap_session();
         packet_handler& get_handler() {return ph;}
-        std::condition_variable& get_packets_available(){return packets_available;}
+        std::condition_variable& get_packets_available(){ return packets_available; }
         friend void libpcap_callback(u_char *user, const struct pcap_pkthdr *hdr,
                                      const u_char *pkt);
+        int type() { return pcap_datalink(handle); }
 #if _PCAPPER_DEBUG_
         std::ostream& serr; // for shared debugging between threads
         std::mutex serr_mutex;

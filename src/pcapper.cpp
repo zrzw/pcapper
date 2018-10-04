@@ -46,7 +46,7 @@ wl_hdr::wl_hdr(const unsigned char* data)
 
 packet::packet(int ll_type, const u_char* pkt, const struct pcap_pkthdr *hdr)
 {
-    size_t len = (hdr->len < hdr->caplen) ? hdr->len : hdr->caplen;
+    len = hdr->caplen;
     size_t cnt = 0; //bytes processed of this packet so far
     switch(ll_type){
     case(DLT_EN10MB):
@@ -70,6 +70,7 @@ packet::packet(int ll_type, const u_char* pkt, const struct pcap_pkthdr *hdr)
 packet::packet(packet&& r)
 {
     if(this != &r){
+        len = r.len;
         machdr = std::move(r.machdr);
         nlhdr = std::move(r.nlhdr);
         tlhdr = std::move(r.tlhdr);
@@ -79,6 +80,7 @@ packet::packet(packet&& r)
 packet& packet::operator= (packet&& r)
 {
     if(this != &r){
+        len = r.len;
         machdr = std::move(r.machdr);
         nlhdr = std::move(r.nlhdr);
         tlhdr = std::move(r.tlhdr);
@@ -86,7 +88,7 @@ packet& packet::operator= (packet&& r)
     return *this;
 }
 
-void basic_packet_handler::pop(pcap_session& pcap)
+void basic_packet_handler::pop(pcap_session& pcap, std::ostream& os)
 {
     std::unique_lock<std::mutex> qlck {pq_mutex};
     pcap.get_packets_available().wait(qlck); // wait for packets to be queued
@@ -94,13 +96,16 @@ void basic_packet_handler::pop(pcap_session& pcap)
     while(!packet_q.empty()){
         auto p = std::move(packet_q.front());
         packet_q.pop();
-        //TODO: do something with p
+        os << "[" << p.get_machdr()->get_src_addr() << "->";
+        os << p.get_machdr()->get_dst_addr() << "]";
+        if(pcap.type() == PCAPPER_LINK_TYPE_ETHERNET){
+            ethernet_hdr& eh = dynamic_cast<ethernet_hdr&>(*p.get_machdr());
+            os << " (type=" << eh.get_printable_ether_type() << ") ";
+        }
+        os << "capture length: " << p.size() << " bytes" << std::endl;
 #if _PCAPPER_DEBUG_
         std::unique_lock<std::mutex> errlck {pcap.serr_mutex};
         pcap.serr << "Pcapper: basic_packet_handler::pop(): removed 1, ";
-        ethernet_hdr& eh = dynamic_cast<ethernet_hdr&>(*p.get_machdr());
-        pcap.serr << "[dst=" << p.get_machdr()->get_dst_addr() << ",";
-        pcap.serr << "type=" << eh.get_printable_ether_type() << "]. ";
         pcap.serr << packet_q.size();
         pcap.serr << " packets still queued" << std::endl;
         errlck.unlock();

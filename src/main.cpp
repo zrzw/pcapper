@@ -16,6 +16,6 @@ int main(int argc, char** argv)
     // libpcap callback mechanism.
     pcap_session pcap {"port 443", handler};
     for(;;)
-        handler.pop(pcap);
+        handler.pop(pcap, std::cout);
     return 0;
 }
