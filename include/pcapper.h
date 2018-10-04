@@ -144,7 +144,7 @@ namespace pcapper {
         std::condition_variable& get_packets_available(){ return packets_available; }
         friend void libpcap_callback(u_char *user, const struct pcap_pkthdr *hdr,
                                      const u_char *pkt);
-        int type() { return pcap_datalink(handle); }
+        int link_type() { return pcap_datalink(handle); }
 #if _PCAPPER_DEBUG_
         std::ostream& serr; // for shared debugging between threads
         std::mutex serr_mutex;

@@ -98,7 +98,7 @@ void basic_packet_handler::pop(pcap_session& pcap, std::ostream& os)
         packet_q.pop();
         os << "[" << p.get_machdr()->get_src_addr() << "->";
         os << p.get_machdr()->get_dst_addr() << "]";
-        if(pcap.type() == PCAPPER_LINK_TYPE_ETHERNET){
+        if(pcap.link_type() == PCAPPER_LINK_TYPE_ETHERNET){
             ethernet_hdr& eh = dynamic_cast<ethernet_hdr&>(*p.get_machdr());
             os << " (type=" << eh.get_printable_ether_type() << ") ";
         }
